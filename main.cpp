@@ -172,7 +172,13 @@ void printMetrics(const std::string& title, const Metrics& m) {
 
 int main() {
     const size_t tableSize = 8192; // power of two
-    const size_t numKeys = 5000;
+
+    size_t numKeys = 0;
+    std::cout << "Enter number of keys: ";
+    if (!(std::cin >> numKeys) || numKeys == 0) {
+        std::cerr << "Invalid number of keys" << std::endl;
+        return 1;
+    }
 
     std::mt19937 rng(42);
     std::uniform_int_distribution<uint32_t> dist(0, 1u << 30);
