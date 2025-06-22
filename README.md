@@ -1,1 +1,26 @@
-# Fibonacci-Hashing-
+# Fibonacci Hashing
+
+This repository contains a small benchmark for analysing **Fibonacci hashing** versus the classic modulo-based hash. The experiment measures
+
+- insertion, retrieval and deletion times
+- collision behaviour (average and maximum chain length)
+- memory usage
+- sensitivity to different key patterns (random, sequential and clustered)
+
+## Building
+
+Compile `main.cpp` with a C++17 compiler:
+
+```bash
+g++ -std=c++17 -O2 main.cpp -o main
+```
+
+## Running
+
+Execute the generated binary to see the metrics for each dataset:
+
+```bash
+./main
+```
+
+The output reports the load factor, average chain length, maximum chain length and execution times for both hashing strategies.
