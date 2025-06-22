@@ -7,6 +7,7 @@
 #include <string>
 #include <functional>
 #include <fstream>
+#include <sstream>
 
 // Check if a number is prime
 static bool isPrime(size_t n) {
@@ -179,11 +180,11 @@ struct Metrics {
 };
 
 // Write a CSV row with metrics
-void writeCsv(std::ofstream& out, const std::string& dataset,
+void writeCsv(std::ofstream& out, size_t numKeys, const std::string& dataset,
               const std::string& method, const Metrics& m) {
-    out << dataset << ',' << method << ',' << m.loadFactor << ',' << m.avgChain
-        << ',' << m.maxChain << ',' << m.insertTime << ',' << m.findTime << ','
-        << m.eraseTime << ',' << m.memory << '\n';
+    out << numKeys << ',' << dataset << ',' << method << ',' << m.loadFactor
+        << ',' << m.avgChain << ',' << m.maxChain << ',' << m.insertTime << ','
+        << m.findTime << ',' << m.eraseTime << ',' << m.memory << '\n';
 }
 
 // Benchmark the table using the provided keys
@@ -248,10 +249,21 @@ void printMetrics(const std::string& title, const Metrics& m) {
 int main() {
     const size_t tableSize = 17; // initial prime size
 
+    std::vector<size_t> keyCounts;
+    std::cout << "Enter number(s) of keys separated by spaces: ";
+    std::string line;
+    std::getline(std::cin, line);
+    std::istringstream iss(line);
     size_t numKeys = 0;
-    std::cout << "Enter number of keys: ";
-    if (!(std::cin >> numKeys) || numKeys == 0) {
-        std::cerr << "Invalid number of keys" << std::endl;
+    while (iss >> numKeys) {
+        if (numKeys == 0) {
+            std::cerr << "Invalid number of keys" << std::endl;
+            return 1;
+        }
+        keyCounts.push_back(numKeys);
+    }
+    if (keyCounts.empty()) {
+        std::cerr << "No valid numbers provided" << std::endl;
         return 1;
     }
 
@@ -263,39 +275,41 @@ int main() {
         std::cerr << "Failed to open results.csv" << std::endl;
         return 1;
     }
-    csv << "Dataset,Method,LoadFactor,AverageCluster,MaxCluster,InsertTime(us),";
+    csv << "NumKeys,Dataset,Method,LoadFactor,AverageCluster,MaxCluster,InsertTime(us),";
     csv << "FindTime(us),EraseTime(us),Memory(B)\n";
 
-    std::vector<int> randomKeys(numKeys);
-    for (size_t i = 0; i < numKeys; ++i) randomKeys[i] = dist(rng);
+    for (size_t numKeys : keyCounts) {
+        std::vector<int> randomKeys(numKeys);
+        for (size_t i = 0; i < numKeys; ++i) randomKeys[i] = dist(rng);
 
-    std::vector<int> sequentialKeys(numKeys);
-    for (size_t i = 0; i < numKeys; ++i) sequentialKeys[i] = static_cast<int>(i);
+        std::vector<int> sequentialKeys(numKeys);
+        for (size_t i = 0; i < numKeys; ++i) sequentialKeys[i] = static_cast<int>(i);
 
-    std::vector<int> clusteredKeys(numKeys);
-    for (size_t i = 0; i < numKeys; ++i) {
-        int base = static_cast<int>((i / 10) * 20);
-        clusteredKeys[i] = base + static_cast<int>(i % 10);
-    }
+        std::vector<int> clusteredKeys(numKeys);
+        for (size_t i = 0; i < numKeys; ++i) {
+            int base = static_cast<int>((i / 10) * 20);
+            clusteredKeys[i] = base + static_cast<int>(i % 10);
+        }
 
-    struct Dataset {
-        std::string name;
-        std::vector<int>* data;
-    } datasets[] = {{"Random", &randomKeys},
-                    {"Sequential", &sequentialKeys},
-                    {"Clustered", &clusteredKeys}};
+        struct Dataset {
+            std::string name;
+            std::vector<int>* data;
+        } datasets[] = {{"Random", &randomKeys},
+                        {"Sequential", &sequentialKeys},
+                        {"Clustered", &clusteredKeys}};
 
-    for (const auto& ds : datasets) {
-        std::cout << "===== Dataset: " << ds.name << " =====\n";
-        Metrics fib = runTest(*ds.data, fibonacciHash, tableSize);
-        Metrics mod = runTest(*ds.data, moduloHash, tableSize);
-        std::cout << "-- Fibonacci Hashing --\n";
-        printMetrics("", fib);
-        writeCsv(csv, ds.name, "Fibonacci", fib);
-        std::cout << "-- Modulo Hashing --\n";
-        printMetrics("", mod);
-        writeCsv(csv, ds.name, "Modulo", mod);
-        std::cout << std::endl;
+        for (const auto& ds : datasets) {
+            std::cout << "===== Dataset: " << ds.name << " ===== (" << numKeys << " keys)\n";
+            Metrics fib = runTest(*ds.data, fibonacciHash, tableSize);
+            Metrics mod = runTest(*ds.data, moduloHash, tableSize);
+            std::cout << "-- Fibonacci Hashing --\n";
+            printMetrics("", fib);
+            writeCsv(csv, numKeys, ds.name, "Fibonacci", fib);
+            std::cout << "-- Modulo Hashing --\n";
+            printMetrics("", mod);
+            writeCsv(csv, numKeys, ds.name, "Modulo", mod);
+            std::cout << std::endl;
+        }
     }
 
     return 0;
