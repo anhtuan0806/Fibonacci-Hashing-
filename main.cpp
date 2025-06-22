@@ -188,33 +188,49 @@ void writeCsv(std::ofstream& out, const std::string& dataset,
 
 // Benchmark the table using the provided keys
 Metrics runTest(const std::vector<int>& keys, HashTable::HashFunc func,
-                size_t initialSize) {
-    HashTable table(initialSize, func);
+                size_t initialSize, size_t runs = 3) {
+    double totalInsert = 0.0;
+    double totalFind = 0.0;
+    double totalErase = 0.0;
 
-    auto start = std::chrono::high_resolution_clock::now();
-    for (int k : keys) table.insert(k);
-    auto end = std::chrono::high_resolution_clock::now();
-    double insertTime =
-        std::chrono::duration<double, std::micro>(end - start).count();
+    double loadFactor = 0.0;
+    double avgChain = 0.0;
+    size_t maxChain = 0;
+    size_t mem = 0;
 
-    double loadFactor = table.loadFactor();
-    double avgChain = table.averageChainLength();
-    size_t maxChain = table.maxChainLength();
-    size_t mem = table.memoryUsage();
+    for (size_t i = 0; i < runs; ++i) {
+        HashTable table(initialSize, func);
 
-    start = std::chrono::high_resolution_clock::now();
-    for (int k : keys) table.contains(k);
-    end = std::chrono::high_resolution_clock::now();
-    double findTime =
-        std::chrono::duration<double, std::micro>(end - start).count();
+        auto start = std::chrono::high_resolution_clock::now();
+        for (int k : keys) table.insert(k);
+        auto end = std::chrono::high_resolution_clock::now();
+        totalInsert +=
+            std::chrono::duration<double, std::micro>(end - start).count();
 
-    start = std::chrono::high_resolution_clock::now();
-    for (int k : keys) table.remove(k);
-    end = std::chrono::high_resolution_clock::now();
-    double eraseTime =
-        std::chrono::duration<double, std::micro>(end - start).count();
+        if (i == 0) {
+            loadFactor = table.loadFactor();
+            avgChain = table.averageChainLength();
+            maxChain = table.maxChainLength();
+            mem = table.memoryUsage();
+        }
 
-    return {loadFactor, avgChain, maxChain, insertTime, findTime, eraseTime, mem};
+        start = std::chrono::high_resolution_clock::now();
+        for (int k : keys) table.contains(k);
+        end = std::chrono::high_resolution_clock::now();
+        totalFind +=
+            std::chrono::duration<double, std::micro>(end - start).count();
+
+        start = std::chrono::high_resolution_clock::now();
+        for (int k : keys) table.remove(k);
+        end = std::chrono::high_resolution_clock::now();
+        totalErase +=
+            std::chrono::duration<double, std::micro>(end - start).count();
+    }
+
+    return {loadFactor,         avgChain,
+            maxChain,           totalInsert / runs,
+            totalFind / runs,   totalErase / runs,
+            mem};
 }
 
 // Pretty-print metrics to stdout
