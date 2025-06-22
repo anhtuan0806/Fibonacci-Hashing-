@@ -195,7 +195,7 @@ Metrics runTest(const std::vector<int>& keys, HashTable::HashFunc func,
     for (int k : keys) table.insert(k);
     auto end = std::chrono::high_resolution_clock::now();
     double insertTime =
-        std::chrono::duration<double, std::milli>(end - start).count();
+        std::chrono::duration<double, std::micro>(end - start).count();
 
     double loadFactor = table.loadFactor();
     double avgChain = table.averageChainLength();
@@ -206,13 +206,13 @@ Metrics runTest(const std::vector<int>& keys, HashTable::HashFunc func,
     for (int k : keys) table.contains(k);
     end = std::chrono::high_resolution_clock::now();
     double findTime =
-        std::chrono::duration<double, std::milli>(end - start).count();
+        std::chrono::duration<double, std::micro>(end - start).count();
 
     start = std::chrono::high_resolution_clock::now();
     for (int k : keys) table.remove(k);
     end = std::chrono::high_resolution_clock::now();
     double eraseTime =
-        std::chrono::duration<double, std::milli>(end - start).count();
+        std::chrono::duration<double, std::micro>(end - start).count();
 
     return {loadFactor, avgChain, maxChain, insertTime, findTime, eraseTime, mem};
 }
@@ -223,9 +223,9 @@ void printMetrics(const std::string& title, const Metrics& m) {
     std::cout << "  Load factor       : " << m.loadFactor << "\n";
     std::cout << "  Avg chain length  : " << m.avgChain << "\n";
     std::cout << "  Max chain length  : " << m.maxChain << "\n";
-    std::cout << "  Insert time (ms)  : " << m.insertTime << "\n";
-    std::cout << "  Find time (ms)    : " << m.findTime << "\n";
-    std::cout << "  Erase time (ms)   : " << m.eraseTime << "\n";
+    std::cout << "  Insert time (\xCE\xBCs)  : " << m.insertTime << "\n";
+    std::cout << "  Find time (\xCE\xBCs)    : " << m.findTime << "\n";
+    std::cout << "  Erase time (\xCE\xBCs)   : " << m.eraseTime << "\n";
     std::cout << "  Memory usage (B)  : " << m.memory << "\n";
 }
 
@@ -247,8 +247,8 @@ int main() {
         std::cerr << "Failed to open results.csv" << std::endl;
         return 1;
     }
-    csv << "Dataset,Method,LoadFactor,AverageCluster,MaxCluster,InsertTime(ms),";
-    csv << "FindTime(ms),EraseTime(ms),Memory(B)\n";
+    csv << "Dataset,Method,LoadFactor,AverageCluster,MaxCluster,InsertTime(us),";
+    csv << "FindTime(us),EraseTime(us),Memory(B)\n";
 
     std::vector<int> randomKeys(numKeys);
     for (size_t i = 0; i < numKeys; ++i) randomKeys[i] = dist(rng);
