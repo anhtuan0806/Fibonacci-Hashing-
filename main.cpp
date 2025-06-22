@@ -74,11 +74,44 @@ public:
     // Current load factor
     double loadFactor() const { return static_cast<double>(sz) / keys.size(); }
 
-    // Average chain length is 1 with open addressing
-    double averageChainLength() const { return sz > 0 ? 1.0 : 0.0; }
+    // Average cluster length (contiguous filled slots)
+    double averageChainLength() const {
+        size_t clusterCount = 0;
+        size_t total = 0;
+        for (size_t i = 0; i < keys.size();) {
+            if (states[i] == State::Filled) {
+                size_t len = 0;
+                while (i < keys.size() && states[i] == State::Filled) {
+                    ++len;
+                    ++i;
+                }
+                ++clusterCount;
+                total += len;
+            } else {
+                ++i;
+            }
+        }
+        if (clusterCount == 0) return 0.0;
+        return static_cast<double>(total) / clusterCount;
+    }
 
-    // Maximum chain length is also 1
-    size_t maxChainLength() const { return sz > 0 ? 1 : 0; }
+    // Maximum cluster length
+    size_t maxChainLength() const {
+        size_t maxLen = 0;
+        for (size_t i = 0; i < keys.size();) {
+            if (states[i] == State::Filled) {
+                size_t len = 0;
+                while (i < keys.size() && states[i] == State::Filled) {
+                    ++len;
+                    ++i;
+                }
+                if (len > maxLen) maxLen = len;
+            } else {
+                ++i;
+            }
+        }
+        return maxLen;
+    }
 
     // Estimated memory usage in bytes
     size_t memoryUsage() const {

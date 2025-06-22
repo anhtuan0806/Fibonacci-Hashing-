@@ -3,7 +3,7 @@
 This repository contains a small benchmark for analysing **Fibonacci hashing** versus the classic modulo-based hash. The experiment measures
 
 - insertion, retrieval and deletion times
-- collision behaviour (average and maximum chain length)
+- collision behaviour (average and maximum cluster length)
 - memory usage
 - sensitivity to different key patterns (random, sequential and clustered)
 
