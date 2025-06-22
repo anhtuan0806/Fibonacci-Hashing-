@@ -7,6 +7,21 @@
 #include <string>
 #include <functional>
 
+// Check if a number is prime
+static bool isPrime(size_t n) {
+    if (n < 2) return false;
+    for (size_t i = 2; i * i <= n; ++i) {
+        if (n % i == 0) return false;
+    }
+    return true;
+}
+
+// Return the next prime number >= n
+static size_t nextPrime(size_t n) {
+    while (!isPrime(n)) ++n;
+    return n;
+}
+
 // Simple open addressing hash table for integer keys using linear probing
 class HashTable {
 public:
@@ -19,17 +34,12 @@ public:
     // Remove all entries
     ~HashTable() { clear(); }
 
-    // Insert a key using linear probing
+    // Insert a key using linear probing with automatic resizing
     void insert(int key) {
-        size_t idx = hashFunc(key, keys.size());
-        while (states[idx] == State::Filled) {
-            if (keys[idx] == key)
-                return; // already in table
-            idx = (idx + 1) % keys.size();
+        insertInternal(key);
+        if (loadFactor() > 0.7) {
+            rehash(nextPrime(keys.size() * 2));
         }
-        keys[idx] = key;
-        states[idx] = State::Filled;
-        ++sz;
     }
 
     // Check if key is present
@@ -82,6 +92,30 @@ public:
     }
 
 private:
+    void insertInternal(int key) {
+        size_t idx = hashFunc(key, keys.size());
+        while (states[idx] == State::Filled) {
+            if (keys[idx] == key)
+                return; // already in table
+            idx = (idx + 1) % keys.size();
+        }
+        keys[idx] = key;
+        states[idx] = State::Filled;
+        ++sz;
+    }
+
+    void rehash(size_t newCapacity) {
+        std::vector<int> oldKeys = keys;
+        std::vector<State> oldStates = states;
+        keys.assign(newCapacity, 0);
+        states.assign(newCapacity, State::Empty);
+        sz = 0;
+        for (size_t i = 0; i < oldKeys.size(); ++i) {
+            if (oldStates[i] == State::Filled)
+                insertInternal(oldKeys[i]);
+        }
+    }
+
     enum class State { Empty, Filled, Deleted };
     std::vector<int> keys;
     std::vector<State> states;
@@ -92,8 +126,7 @@ private:
 // Fibonacci hashing for integers
 static size_t fibonacciHash(int key, size_t tableSize) {
     static const uint32_t fib = 2654435769u; // 2^32 / golden ratio
-    unsigned int shift = 32 - static_cast<unsigned int>(std::log2(tableSize));
-    return (static_cast<uint32_t>(key) * fib) >> shift;
+    return (static_cast<uint64_t>(static_cast<uint32_t>(key) * fib)) % tableSize;
 }
 
 // Simple modulo hashing
@@ -113,8 +146,8 @@ struct Metrics {
 
 // Benchmark the table using the provided keys
 Metrics runTest(const std::vector<int>& keys, HashTable::HashFunc func,
-                size_t tableSize) {
-    HashTable table(tableSize, func);
+                size_t initialSize) {
+    HashTable table(initialSize, func);
 
     auto start = std::chrono::high_resolution_clock::now();
     for (int k : keys) table.insert(k);
@@ -155,7 +188,7 @@ void printMetrics(const std::string& title, const Metrics& m) {
 }
 
 int main() {
-    const size_t tableSize = 8192; // power of two
+    const size_t tableSize = 17; // initial prime size
 
     size_t numKeys = 0;
     std::cout << "Enter number of keys: ";
