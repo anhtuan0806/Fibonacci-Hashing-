@@ -17,8 +17,9 @@ g++ -std=c++17 -O2 main.cpp -o main
 
 ## Running
 
-Execute the generated binary and enter the desired number of keys when prompted.
-The program will then show metrics for random, sequential and clustered datasets:
+Execute the generated binary and enter one or more key counts when prompted.
+Separate multiple values with spaces. The program will show metrics for each
+size across random, sequential and clustered datasets:
 
 ```bash
 ./main
@@ -28,5 +29,6 @@ The output reports the load factor, average chain length, maximum chain length
 and execution times (in microseconds) for both hashing strategies. Execution
 times are averaged over three runs to reduce variance.
 
-Additionally, the program writes these metrics to `results.csv` so they can be
-opened in spreadsheet software like Excel for further analysis.
+Additionally, the program writes these metrics to `results.csv` for each input
+size so they can be opened in spreadsheet software like Excel for further
+analysis.
