@@ -23,6 +23,21 @@ static size_t nextPrime(size_t n) {
     return n;
 }
 
+// Check if a number is prime
+static bool isPrime(size_t n) {
+    if (n < 2) return false;
+    for (size_t i = 2; i * i <= n; ++i) {
+        if (n % i == 0) return false;
+    }
+    return true;
+}
+
+// Return the next prime number >= n
+static size_t nextPrime(size_t n) {
+    while (!isPrime(n)) ++n;
+    return n;
+}
+
 // Simple open addressing hash table for integer keys using linear probing
 class HashTable {
 public:
