@@ -25,3 +25,6 @@ The program will then show metrics for random, sequential and clustered datasets
 ```
 
 The output reports the load factor, average chain length, maximum chain length and execution times for both hashing strategies.
+
+Additionally, the program writes these metrics to `results.csv` so they can be
+opened in spreadsheet software like Excel for further analysis.
