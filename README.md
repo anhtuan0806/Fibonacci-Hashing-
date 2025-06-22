@@ -17,7 +17,8 @@ g++ -std=c++17 -O2 main.cpp -o main
 
 ## Running
 
-Execute the generated binary to see the metrics for each dataset:
+Execute the generated binary and enter the desired number of keys when prompted.
+The program will then show metrics for random, sequential and clustered datasets:
 
 ```bash
 ./main
