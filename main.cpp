@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <string>
 #include <functional>
+#include <fstream>
 
 // Check if a number is prime
 static bool isPrime(size_t n) {
@@ -177,6 +178,14 @@ struct Metrics {
     size_t memory;
 };
 
+// Write a CSV row with metrics
+void writeCsv(std::ofstream& out, const std::string& dataset,
+              const std::string& method, const Metrics& m) {
+    out << dataset << ',' << method << ',' << m.loadFactor << ',' << m.avgChain
+        << ',' << m.maxChain << ',' << m.insertTime << ',' << m.findTime << ','
+        << m.eraseTime << ',' << m.memory << '\n';
+}
+
 // Benchmark the table using the provided keys
 Metrics runTest(const std::vector<int>& keys, HashTable::HashFunc func,
                 size_t initialSize) {
@@ -233,6 +242,14 @@ int main() {
     std::mt19937 rng(42);
     std::uniform_int_distribution<int> dist(0, 1u << 30);
 
+    std::ofstream csv("results.csv");
+    if (!csv) {
+        std::cerr << "Failed to open results.csv" << std::endl;
+        return 1;
+    }
+    csv << "Dataset,Method,LoadFactor,AverageCluster,MaxCluster,InsertTime(ms),";
+    csv << "FindTime(ms),EraseTime(ms),Memory(B)\n";
+
     std::vector<int> randomKeys(numKeys);
     for (size_t i = 0; i < numKeys; ++i) randomKeys[i] = dist(rng);
 
@@ -258,8 +275,10 @@ int main() {
         Metrics mod = runTest(*ds.data, moduloHash, tableSize);
         std::cout << "-- Fibonacci Hashing --\n";
         printMetrics("", fib);
+        writeCsv(csv, ds.name, "Fibonacci", fib);
         std::cout << "-- Modulo Hashing --\n";
         printMetrics("", mod);
+        writeCsv(csv, ds.name, "Modulo", mod);
         std::cout << std::endl;
     }
 
