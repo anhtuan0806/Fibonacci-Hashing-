@@ -6,6 +6,22 @@
 #include <cstdint>
 #include <string>
 #include <functional>
+#include <fstream>
+
+// Check if a number is prime
+static bool isPrime(size_t n) {
+    if (n < 2) return false;
+    for (size_t i = 2; i * i <= n; ++i) {
+        if (n % i == 0) return false;
+    }
+    return true;
+}
+
+// Return the next prime number >= n
+static size_t nextPrime(size_t n) {
+    while (!isPrime(n)) ++n;
+    return n;
+}
 
 // Simple open addressing hash table for integer keys using linear probing
 class HashTable {
@@ -19,17 +35,12 @@ public:
     // Remove all entries
     ~HashTable() { clear(); }
 
-    // Insert a key using linear probing
+    // Insert a key using linear probing with automatic resizing
     void insert(int key) {
-        size_t idx = hashFunc(key, keys.size());
-        while (states[idx] == State::Filled) {
-            if (keys[idx] == key)
-                return; // already in table
-            idx = (idx + 1) % keys.size();
+        insertInternal(key);
+        if (loadFactor() > 0.7) {
+            rehash(nextPrime(keys.size() * 2));
         }
-        keys[idx] = key;
-        states[idx] = State::Filled;
-        ++sz;
     }
 
     // Check if key is present
@@ -64,11 +75,44 @@ public:
     // Current load factor
     double loadFactor() const { return static_cast<double>(sz) / keys.size(); }
 
-    // Average chain length is 1 with open addressing
-    double averageChainLength() const { return sz > 0 ? 1.0 : 0.0; }
+    // Average cluster length (contiguous filled slots)
+    double averageChainLength() const {
+        size_t clusterCount = 0;
+        size_t total = 0;
+        for (size_t i = 0; i < keys.size();) {
+            if (states[i] == State::Filled) {
+                size_t len = 0;
+                while (i < keys.size() && states[i] == State::Filled) {
+                    ++len;
+                    ++i;
+                }
+                ++clusterCount;
+                total += len;
+            } else {
+                ++i;
+            }
+        }
+        if (clusterCount == 0) return 0.0;
+        return static_cast<double>(total) / clusterCount;
+    }
 
-    // Maximum chain length is also 1
-    size_t maxChainLength() const { return sz > 0 ? 1 : 0; }
+    // Maximum cluster length
+    size_t maxChainLength() const {
+        size_t maxLen = 0;
+        for (size_t i = 0; i < keys.size();) {
+            if (states[i] == State::Filled) {
+                size_t len = 0;
+                while (i < keys.size() && states[i] == State::Filled) {
+                    ++len;
+                    ++i;
+                }
+                if (len > maxLen) maxLen = len;
+            } else {
+                ++i;
+            }
+        }
+        return maxLen;
+    }
 
     // Estimated memory usage in bytes
     size_t memoryUsage() const {
@@ -82,6 +126,30 @@ public:
     }
 
 private:
+    void insertInternal(int key) {
+        size_t idx = hashFunc(key, keys.size());
+        while (states[idx] == State::Filled) {
+            if (keys[idx] == key)
+                return; // already in table
+            idx = (idx + 1) % keys.size();
+        }
+        keys[idx] = key;
+        states[idx] = State::Filled;
+        ++sz;
+    }
+
+    void rehash(size_t newCapacity) {
+        std::vector<int> oldKeys = keys;
+        std::vector<State> oldStates = states;
+        keys.assign(newCapacity, 0);
+        states.assign(newCapacity, State::Empty);
+        sz = 0;
+        for (size_t i = 0; i < oldKeys.size(); ++i) {
+            if (oldStates[i] == State::Filled)
+                insertInternal(oldKeys[i]);
+        }
+    }
+
     enum class State { Empty, Filled, Deleted };
     std::vector<int> keys;
     std::vector<State> states;
@@ -92,8 +160,7 @@ private:
 // Fibonacci hashing for integers
 static size_t fibonacciHash(int key, size_t tableSize) {
     static const uint32_t fib = 2654435769u; // 2^32 / golden ratio
-    unsigned int shift = 32 - static_cast<unsigned int>(std::log2(tableSize));
-    return (static_cast<uint32_t>(key) * fib) >> shift;
+    return (static_cast<uint64_t>(static_cast<uint32_t>(key) * fib)) % tableSize;
 }
 
 // Simple modulo hashing
@@ -111,10 +178,18 @@ struct Metrics {
     size_t memory;
 };
 
+// Write a CSV row with metrics
+void writeCsv(std::ofstream& out, const std::string& dataset,
+              const std::string& method, const Metrics& m) {
+    out << dataset << ',' << method << ',' << m.loadFactor << ',' << m.avgChain
+        << ',' << m.maxChain << ',' << m.insertTime << ',' << m.findTime << ','
+        << m.eraseTime << ',' << m.memory << '\n';
+}
+
 // Benchmark the table using the provided keys
 Metrics runTest(const std::vector<int>& keys, HashTable::HashFunc func,
-                size_t tableSize) {
-    HashTable table(tableSize, func);
+                size_t initialSize) {
+    HashTable table(initialSize, func);
 
     auto start = std::chrono::high_resolution_clock::now();
     for (int k : keys) table.insert(k);
@@ -155,7 +230,7 @@ void printMetrics(const std::string& title, const Metrics& m) {
 }
 
 int main() {
-    const size_t tableSize = 8192; // power of two
+    const size_t tableSize = 17; // initial prime size
 
     size_t numKeys = 0;
     std::cout << "Enter number of keys: ";
@@ -166,6 +241,14 @@ int main() {
 
     std::mt19937 rng(42);
     std::uniform_int_distribution<int> dist(0, 1u << 30);
+
+    std::ofstream csv("results.csv");
+    if (!csv) {
+        std::cerr << "Failed to open results.csv" << std::endl;
+        return 1;
+    }
+    csv << "Dataset,Method,LoadFactor,AverageCluster,MaxCluster,InsertTime(ms),";
+    csv << "FindTime(ms),EraseTime(ms),Memory(B)\n";
 
     std::vector<int> randomKeys(numKeys);
     for (size_t i = 0; i < numKeys; ++i) randomKeys[i] = dist(rng);
@@ -192,8 +275,10 @@ int main() {
         Metrics mod = runTest(*ds.data, moduloHash, tableSize);
         std::cout << "-- Fibonacci Hashing --\n";
         printMetrics("", fib);
+        writeCsv(csv, ds.name, "Fibonacci", fib);
         std::cout << "-- Modulo Hashing --\n";
         printMetrics("", mod);
+        writeCsv(csv, ds.name, "Modulo", mod);
         std::cout << std::endl;
     }
 
