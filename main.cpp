@@ -8,6 +8,7 @@
 #include <functional>
 #include <fstream>
 #include <sstream>
+#include <iomanip>
 
 // Check if a number is prime
 static bool isPrime(size_t n) {
@@ -275,6 +276,7 @@ int main() {
         std::cerr << "Failed to open results.csv" << std::endl;
         return 1;
     }
+    csv << std::fixed << std::setprecision(2);
     csv << "NumKeys,Dataset,Method,LoadFactor,AverageCluster,MaxCluster,InsertTime(us),";
     csv << "FindTime(us),EraseTime(us),Memory(B)\n";
 
